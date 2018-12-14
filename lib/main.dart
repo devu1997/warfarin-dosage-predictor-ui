@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:anticoagulant_predictor/login_page.dart';
+import 'package:anticoagulant_predictor/home_page.dart';
 
 void main() => runApp(MyApp());
 
@@ -23,6 +24,6 @@ class MyApp extends StatelessWidget {
               button: TextStyle(color: Colors.white),
             ),
         ),
-        home: LoginPage());
+        home: HomePage());
   }
 }

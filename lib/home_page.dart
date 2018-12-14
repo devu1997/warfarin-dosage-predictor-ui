@@ -17,7 +17,7 @@ class Procedure {
   final String value;
 }
 
-class PredictionData {
+class PredictionRequestData {
   int age;
   Gender gender;
   Procedure procedure;
@@ -26,14 +26,27 @@ class PredictionData {
   double oldDose;
 }
 
-class PredictionResponse {
-  double newDose;
+class VerificationResponseData {
+  final String status;
 
-  PredictionResponse(this.newDose);
+  VerificationResponseData({this.status});
 
-  factory PredictionResponse.fromString(String data) {
-    Map json = jsonDecode(data);
-    return PredictionResponse(json['verification']);
+  factory VerificationResponseData.fromJson(Map<String, dynamic> json) {
+    return VerificationResponseData(
+      status: json['verification'],
+    );
+  }
+}
+
+class PredictionResponseData {
+  final double newDose;
+
+  PredictionResponseData({this.newDose});
+
+  factory PredictionResponseData.fromJson(Map<String, dynamic> json) {
+    return PredictionResponseData(
+      newDose: json['predicted_dose'],
+    );
   }
 }
 
@@ -43,75 +56,100 @@ class HomePage extends StatefulWidget {
 }
 
 class HomePageState extends State<HomePage> {
-  PredictionData _predictionData = PredictionData();
-  String _predictionResponseMessage = 'No response';
+  PredictionRequestData _predictionRequestData = PredictionRequestData();
 
-  final _predictionFormKey = GlobalKey<FormState>();
+  final _predictionRequestFormKey = GlobalKey<FormState>();
   final List<Gender> genders = <Gender>[Gender('Male','Male'), Gender('Female','Female'), Gender('Other','Other')];
   final List<Procedure> procedures = <Procedure>[Procedure('MVR','MVR'), Procedure('AVR','AVR'), Procedure('DVR','DVR'), Procedure('AF','AF')];
+  bool _loaderStatus = false;
+  var _testMessage = 'a';
 
-  void _showPrediction(int predictedNewDose) {
+  void _changeLoaderStatus(bool status) {
     setState(() {
-      _predictionResponseMessage = 'New Warfarine Dosage is  $predictedNewDose  mg';
+      _loaderStatus = status;
     });
   }
 
-  void _test(predictedNewDose) {
+  void _showTest(data) {
     setState(() {
-      _predictionResponseMessage = 'New Warfarine Dosage is  $predictedNewDose  mg';
+      _loaderStatus = false;
+      _testMessage = data;
     });
   }
 
-  Future<PredictionResponse> fetchPrediction() async {
+  Future<VerificationResponseData> verifyPredictionData() async {
+
     var validationUrl = Uri.parse('https://prediciton-api-prototype.herokuapp.com/predictor/validate/');
     var request = new http.MultipartRequest("POST", validationUrl);
 
-    request.fields['age'] = _predictionData.age.toString();
-    request.fields['gender'] = _predictionData.gender.value;
-    request.fields['procedure'] = _predictionData.procedure.value;
-    request.fields['oldINRValue'] = _predictionData.oldINR.toString();
-    request.fields['newINRValue'] = _predictionData.newINR.toString();
-    request.fields['oldDose'] = _predictionData.oldDose.toString();
-
+    request.fields['age'] = _predictionRequestData.age.toString();
+    request.fields['gender'] = _predictionRequestData.gender.value;
+    request.fields['procedure'] = _predictionRequestData.procedure.value;
+    request.fields['oldINRValue'] = _predictionRequestData.oldINR.toString();
+    request.fields['newINRValue'] = _predictionRequestData.newINR.toString();
+    request.fields['oldDose'] = _predictionRequestData.oldDose.toString();
     request.send().then((response) {
       if (response.statusCode == 200) {
-         Stream<String> responseStream = response.stream.toStringStream();
-         return responseStream.listen((String data) => PredictionResponse.fromString(data));
-//        return PredictionResponse.fromJson(json.decode(response.body));
+        Stream<String> responseStream = response.stream.toStringStream();
+        JsonDecoder jsonDecoder;
+        responseStream
+            .listen((data) {
+              json.decode(data);
+              _showTest(data);
+            }
+        );
       } else {
         throw Exception('Failed to load post');
       }
     });
-    _showPrediction(6217);
+  }
+
+  Future<PredictionResponseData> fetchPrediction() async {
+
+    var validationUrl = Uri.parse('https://prediciton-api-prototype.herokuapp.com/predictor/validate/');
+    var request = new http.MultipartRequest("POST", validationUrl);
+
+    request.fields['age'] = _predictionRequestData.age.toString();
+    request.fields['gender'] = _predictionRequestData.gender.value;
+    request.fields['procedure'] = _predictionRequestData.procedure.value;
+    request.fields['oldINRValue'] = _predictionRequestData.oldINR.toString();
+    request.fields['newINRValue'] = _predictionRequestData.newINR.toString();
+    request.fields['oldDose'] = _predictionRequestData.oldDose.toString();
+
+    request.send().then((response) {
+      if (response.statusCode == 200) {
+        Stream<String> responseStream = response.stream.toStringStream();
+        return responseStream.listen((data) => PredictionResponseData.fromJson(json.decode(data)));
+      } else {
+        throw Exception('Failed to load post');
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    Color textColor = Colors.black;
-    TextStyle textStyle = TextStyle(fontSize: 16, color: textColor);
 
     Widget ageWidget = TextFormField(
         keyboardType: TextInputType.number,
         decoration: InputDecoration(
           labelText: 'Age',
         ),
-        style: textStyle,
         validator: (value) {
           if (value.isEmpty) {
             return 'This field is required';
           }
         },
         onSaved: (value) {
-          _predictionData.age = int.parse(value);
+          _predictionRequestData.age = int.parse(value);
         }
     );
 
     Widget genderWidget = DropdownButtonFormField(
       hint: Text('Gender'),
-      value: _predictionData.gender,
+      value: _predictionRequestData.gender,
       onChanged: (Gender newGender) {
         setState(() {
-          _predictionData.gender = newGender;
+          _predictionRequestData.gender = newGender;
         });
       },
       items: genders.map((Gender gender) {
@@ -123,14 +161,19 @@ class HomePageState extends State<HomePage> {
           ),
         );
       }).toList(),
+//      validator: (value) {
+//        if (value.isEmpty) {
+//          return 'This field is required';
+//        }
+//      },
     );
 
     Widget procedureWidget = DropdownButtonFormField(
       hint: Text('Procedure'),
-      value: _predictionData.procedure,
+      value: _predictionRequestData.procedure,
       onChanged: (Procedure newProcedure) {
         setState(() {
-          _predictionData.procedure = newProcedure;
+          _predictionRequestData.procedure = newProcedure;
         });
       },
       items: procedures.map((Procedure procedure) {
@@ -142,6 +185,11 @@ class HomePageState extends State<HomePage> {
           ),
         );
       }).toList(),
+//      validator: (value) {
+//        if (value.isEmpty) {
+//          return 'This field is required';
+//        }
+//      },
     );
 
     Widget oldINRWidget = TextFormField(
@@ -149,14 +197,13 @@ class HomePageState extends State<HomePage> {
         decoration: InputDecoration(
           labelText: 'Old INR Reading',
         ),
-        style: textStyle,
         validator: (value) {
           if (value.isEmpty) {
             return 'This field is required';
           }
         },
         onSaved: (value) {
-          _predictionData.oldINR = double.parse(value);
+          _predictionRequestData.oldINR = double.parse(value);
         }
     );
 
@@ -165,14 +212,13 @@ class HomePageState extends State<HomePage> {
         decoration: InputDecoration(
           labelText: 'New INR Reading',
         ),
-        style: textStyle,
         validator: (value) {
           if (value.isEmpty) {
             return 'This field is required';
           }
         },
         onSaved: (value) {
-          _predictionData.newINR = double.parse(value);
+          _predictionRequestData.newINR = double.parse(value);
         }
     );
 
@@ -181,34 +227,47 @@ class HomePageState extends State<HomePage> {
         decoration: InputDecoration(
           labelText: 'Old Warfarine Dose',
         ),
-        style: textStyle,
         validator: (value) {
           if (value.isEmpty) {
             return 'This field is required';
           }
         },
         onSaved: (value) {
-          _predictionData.oldDose = double.parse(value);
+          _predictionRequestData.oldDose = double.parse(value);
         }
     );
+
+    Widget loaderWidget = _loaderStatus ? CircularProgressIndicator() : Container();
 
     Widget newDoseWidget = Container(
         alignment: Alignment.center,
         padding: EdgeInsets.symmetric(vertical: 16),
-        child: Text(_predictionResponseMessage)
+        child: FutureBuilder<PredictionResponseData>(
+          future: fetchPrediction(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              _changeLoaderStatus(false);
+              return Text('Predicted new dose is ${snapshot.data.newDose} mg');
+            }
+            return Container();
+          },
+        )
     );
 
     Widget predictButton = Padding(
         padding: EdgeInsets.symmetric(vertical: 16.0),
         child: RaisedButton(
           onPressed: (){
-            if (_predictionFormKey.currentState.validate()) {
-              fetchPrediction();
+            if (_predictionRequestFormKey.currentState.validate()) {
+              _changeLoaderStatus(true);
+              verifyPredictionData();
+//              fetchPrediction();
             }
           },
           child: Text('PREDICT'),
         )
     );
+
     return Scaffold(
         appBar: AppBar(
           title: Text('Anticoagulant Predictor'),
@@ -216,7 +275,7 @@ class HomePageState extends State<HomePage> {
         body: Padding(
             padding: EdgeInsets.symmetric(horizontal: 42.0),
             child: Form(
-                key: _predictionFormKey,
+                key: _predictionRequestFormKey,
                 child: ListView(
                   children: <Widget>[
                     ageWidget,
@@ -226,7 +285,9 @@ class HomePageState extends State<HomePage> {
                     newINRWidget,
                     oldDoseWidget,
                     newDoseWidget,
+                    loaderWidget,
                     predictButton,
+                    Text(_testMessage)
                   ],
                 )
             )
