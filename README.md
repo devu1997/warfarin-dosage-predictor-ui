@@ -1,6 +1,6 @@
 # Warfarin Dosage Predictor UI
 
-A flutter application to predict dosage of an anticoagulant drug Warfarin.
+An android application using flutter to predict the dosage of an anticoagulant drug, Warfarin, using PT-INR test results.
 
 ## Getting Started
 
