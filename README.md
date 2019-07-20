@@ -1,6 +1,6 @@
-# anticoagulant_predictor
+# Warfarin-Dosage-Predictor-UI
 
-An application to predict dosage of a anticoagulant drug
+A flutter application to predict dosage of an anticoagulant drug Warfarin.
 
 ## Getting Started
 
