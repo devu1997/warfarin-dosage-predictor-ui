@@ -1,4 +1,4 @@
-# Warfarin Dosag Predictor UI
+# Warfarin Dosage Predictor UI
 
 A flutter application to predict dosage of an anticoagulant drug Warfarin.
 
